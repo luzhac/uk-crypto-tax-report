@@ -347,7 +347,7 @@ class BinanceExchange(BaseExchange):
                 print(f"Error from {current_start.date()} to {current_end.date()}: {e}")
 
             current_start = current_end + timedelta(days=1)
-            time.sleep(0.5)  # 避免触发频率限制
+            time.sleep(0.5)
 
         df = pd.DataFrame(all_records)
 
