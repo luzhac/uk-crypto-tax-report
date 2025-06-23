@@ -332,7 +332,7 @@ def sum_interest():
             results=pd.concat(results,trades)
 
 
-    # 把结果存为 DataFrame
+
     df = pd.DataFrame(results)
     summary=[]
     for asset in df['asset'].unique():
