@@ -339,10 +339,12 @@ class BinanceExchange(BaseExchange):
                     isolatedSymbol=isolatedSymbol,
                     startTime=int(current_start.timestamp() * 1000),
                     endTime=int(current_end.timestamp() * 1000),
+
                     size=100
                 )
-                #print(response)
+
                 all_records.extend(response['rows'])
+
             except Exception as e:
                 print(f"Error from {current_start.date()} to {current_end.date()}: {e}")
 
@@ -353,8 +355,9 @@ class BinanceExchange(BaseExchange):
 
         if not df.empty:
 
+
             df['interestAccuredTime'] = pd.to_datetime(df['interestAccuredTime'], unit='ms')
-            print(df.head())
+
             raw_folder = './data/raw/interest'
             if isolatedSymbol:
                 filename = 'interest_margin_'+isolatedSymbol+'.csv'

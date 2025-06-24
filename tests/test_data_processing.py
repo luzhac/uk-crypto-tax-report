@@ -170,10 +170,13 @@ datetime,symbol,side,price,qty,quoteQty,commission,commissionAsset,orderId
 """
 
 
+
+
+
 def test_calculate_fifo_pnl_totals():
     trades = pd.read_csv(StringIO(data))
-
     result,result_summary = calculate_pnl_2(trades)
+    result=pd.DataFrame(result)
 
     # Check expected totals
     assert result['qty'].sum() == 77294.0
@@ -186,7 +189,7 @@ def test_calculate_fifo_pnl_totals_fail():
     trades = pd.read_csv(StringIO(data))
 
     result,result_summary = calculate_pnl_2(trades)
-
+    result = pd.DataFrame(result)
     # Intentionally incorrect expected values
     assert result['qty'].sum() != 38647.0 + 1
     assert not abs(result['profit'].sum() + 255.6037 + 0.1) < 1e-6
