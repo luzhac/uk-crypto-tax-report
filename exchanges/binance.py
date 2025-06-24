@@ -13,29 +13,28 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
+
 class BinanceExchange(BaseExchange):
-    def __init__(self, api_key, api_secret,start_time,end_time):
+    def __init__(self, api_key, api_secret, start_time, end_time):
         self.client = Spot(api_key=api_key, api_secret=api_secret)
-        self.start_time=start_time
-        self.end_time=end_time
+        self.start_time = start_time
+        self.end_time = end_time
 
     def get_trades(self, symbol, start, end):
 
         ...
 
-
-
     @sleep_and_retry
     @limits(calls=600, period=60)
-    def get_price_minute(self,asset1,asset2):
-        start_date=self.start_time
-        end_date=self.end_time
-        symbol = str(asset1).upper()+str(asset2).upper()
+    def get_price_minute(self, asset1, asset2):
+        start_date = self.start_time
+        end_date = self.end_time
+        symbol = str(asset1).upper() + str(asset2).upper()
         interval = '1m'
         limit = 1000
 
         start_ts = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
-        end_ts = int((datetime.strptime(end_date, "%Y-%m-%d")+timedelta(days=1)).timestamp() * 1000)
+        end_ts = int((datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).timestamp() * 1000)
 
         all_klines = []
 
@@ -58,22 +57,20 @@ class BinanceExchange(BaseExchange):
                 print(f"Error: {e}")
                 time.sleep(1)
 
-        df = pd.DataFrame(all_klines,columns = [
-    'open_time', 'open', 'high', 'low', 'close', 'volume',
-    'close_time', 'quote_asset_volume', 'number_of_trades',
-    'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-])
+        df = pd.DataFrame(all_klines, columns=[
+            'open_time', 'open', 'high', 'low', 'close', 'volume',
+            'close_time', 'quote_asset_volume', 'number_of_trades',
+            'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+        ])
         df['datetime'] = pd.to_datetime(df['open_time'], unit='ms')
         df = df[['datetime', 'close']]
-        df['close'] = df[ 'close'].astype(float)
+        df['close'] = df['close'].astype(float)
 
         folder = './data'
-        filename=asset1.lower()+'_'+asset2.lower()+'.csv'
+        filename = asset1.lower() + '_' + asset2.lower() + '.csv'
         os.makedirs(folder, exist_ok=True)
         filepath = os.path.join(folder, filename)
         df.to_csv(filepath)
-
-
 
         return df
 
@@ -85,13 +82,9 @@ class BinanceExchange(BaseExchange):
 
         ...
 
-
-
-    def get_margin_trades(self,symbol, start_date, end_date, file_path):
+    def get_margin_trades(self, symbol, start_date, end_date, file_path):
         # api_key    = os.environ["BINANCE_API_KEY"]
         # api_secret = os.environ["BINANCE_SECRET_KEY"]
-
-
 
         all_trades = []
         current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
@@ -149,11 +142,9 @@ class BinanceExchange(BaseExchange):
         return df[
             ['datetime', 'symbol', 'side', 'price', 'qty', 'quoteQty', 'commission', 'commissionAsset', 'orderId']]
 
-    def get_margin_trades(self,symbol, start_date, end_date, file_path):
+    def get_margin_trades(self, symbol, start_date, end_date, file_path):
         # api_key    = os.environ["BINANCE_API_KEY"]
         # api_secret = os.environ["BINANCE_SECRET_KEY"]
-
-
 
         all_trades = []
         current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
@@ -210,13 +201,10 @@ class BinanceExchange(BaseExchange):
 
         return df[
             ['datetime', 'symbol', 'side', 'price', 'qty', 'quoteQty', 'commission', 'commissionAsset', 'orderId']]
-
-
 
     @sleep_and_retry
     @limits(calls=60, period=60)
-    def get_spot_trades(self,symbol, start_date, end_date, file_path):
-
+    def get_spot_trades(self, symbol, start_date, end_date, file_path):
 
         all_trades = []
         current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
@@ -284,7 +272,7 @@ class BinanceExchange(BaseExchange):
         return df[
             ['datetime', 'symbol', 'side', 'price', 'qty', 'quoteQty', 'commission', 'commissionAsset', 'orderId']]
 
-    def get_spot_records(self,symbols):
+    def get_spot_records(self, symbols):
         # print(get_available_usdt_symbols())
 
         symbols = [symbol for symbol in symbols if symbol >= 'ACAUSDT']
@@ -301,7 +289,7 @@ class BinanceExchange(BaseExchange):
                 else:
                     self.get_spot_trades(symbol, start_date, end_date, file_path)
 
-    def get_trade_records(self,symbols):
+    def get_trade_records(self, symbols):
         # print(get_available_usdt_symbols())
         symbols = ['CTXCUSDT']
         start_date, end_date = '2024-04-06', '2025-04-05'  ##In the tax year 6 April 2024 to 5 April 2025:
@@ -317,65 +305,82 @@ class BinanceExchange(BaseExchange):
                 else:
                     self.get_margin_trades(symbol, start_date, end_date, file_path)
 
-    @sleep_and_retry
-    @limits(calls=1200, period=60)
-    def get_margin_interest_history_all_year(self , isolatedSymbol=None):
-        start_date_str=self.start_time
-        end_date_str=self.end_time
+
+    def get_margin_interest_history_all_year(self, isolatedSymbol=None):
+        start_date_str = self.start_time
+        end_date_str = self.end_time
 
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-        end_date = end_date + timedelta(hours=23, minutes=59, seconds=59)
 
         all_records = []
         current_start = start_date
-        size = 100
 
         while current_start < end_date:
-            current_end = min(current_start + timedelta(days=29), end_date)
-            print(f"Fetching {current_start.date()} to {current_end.date()} {int(current_start.timestamp() * 1000)}")
-            current=1
+
+            current_end = min(current_start + timedelta(days=30), end_date)
+            print(f"Fetching {current_start.date()} to {current_end.date()}")
+
+            # Implement pagination for each time window
+            page = 1
             while True:
                 try:
                     response = self.client.margin_interest_history(
                         isolatedSymbol=isolatedSymbol,
                         startTime=int(current_start.timestamp() * 1000),
                         endTime=int(current_end.timestamp() * 1000),
-                        current=current,
-                        size=size
+                        current=page,
+                        size=100
                     )
-                    total=response['total']
 
-                    all_records.extend(response['rows'])
-                    if total>size and current<=total/size:
-                        current+=1
-                    else:
+                    if not response.get('rows'):
                         break
 
+                    all_records.extend(response['rows'])
+
+                    # Check if we've got all records for this period
+                    if len(response['rows']) < 100:
+                        break
+
+                    page += 1
+                    time.sleep(0.1)  # Small delay between pagination requests
+
                 except Exception as e:
-                    print(f"Error from {current_start.date()} to {current_end.date()}: {e}")
-                finally:
-                    time.sleep(0.5)
+                    print(f"Error from {current_start.date()} to {current_end.date()}, page {page}: {e}")
+                    time.sleep(2)  # Wait before continuing
+                    break
 
-            current_start = current_end + timedelta(days=1)
+            # Move to next period without gaps
+            current_start = current_end
+            time.sleep(0.5)
 
+            df = pd.DataFrame(all_records)
 
-        df = pd.DataFrame(all_records)
+            if not df.empty:
+                # Add validation
+                print(f"Total interest records fetched: {len(df)}")
+                if 'interestAccuredTime' in df.columns:
+                    df['interestAccuredTime'] = pd.to_datetime(df['interestAccuredTime'], unit='ms')
+                    print(f"Date range: {df['interestAccuredTime'].min()} to {df['interestAccuredTime'].max()}")
 
-        if not df.empty:
+                    # Check for date gaps
+                    df_sorted = df.sort_values('interestAccuredTime')
+                    date_gaps = df_sorted['interestAccuredTime'].diff().dt.days
+                    large_gaps = date_gaps[date_gaps > 2]  # Gaps larger than 2 days
+                    if not large_gaps.empty:
+                        print(f"Warning: Found {len(large_gaps)} potential date gaps in interest data")
 
+                df['interestAccuredTime'] = pd.to_datetime(df['interestAccuredTime'], unit='ms')
 
-            df['interestAccuredTime'] = pd.to_datetime(df['interestAccuredTime'], unit='ms')
-
-            raw_folder = './data/raw/interest'
-            if isolatedSymbol:
-                filename = 'interest_margin_'+isolatedSymbol+'.csv'
-            else:
-                filename='interest_margin.csv'
-            os.makedirs(raw_folder, exist_ok=True)
-            filepath = os.path.join(raw_folder, filename)
-            df.to_csv(filepath)
-        return df
+                raw_folder = './data/raw/interest'
+                if isolatedSymbol:
+                    filename = 'interest_margin_' + isolatedSymbol + '.csv'
+                else:
+                    filename = 'interest_margin.csv'
+                os.makedirs(raw_folder, exist_ok=True)
+                filepath = os.path.join(raw_folder, filename)
+                df.to_csv(filepath)
+            return df
 
     def get_available_spot_usdt_symbols(self):
         BASE_URL = "https://data.binance.vision/?prefix=data/spot/daily/trades/"
@@ -401,10 +406,10 @@ class BinanceExchange(BaseExchange):
             driver.quit()
 
     def get_all_isolated_margin_interest_history_all_year(self):
-        symbols=self.get_available_spot_usdt_symbols()
+        symbols = self.get_available_spot_usdt_symbols()
         for symbol in symbols:
             print(f'fetch  {symbol}')
-            self.get_margin_interest_history_all_year( symbol)
+            self.get_margin_interest_history_all_year(symbol)
 
 
 
