@@ -325,31 +325,40 @@ class BinanceExchange(BaseExchange):
 
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        end_date = end_date + timedelta(hours=23, minutes=59, seconds=59)
 
         all_records = []
         current_start = start_date
+        size = 100
 
         while current_start < end_date:
             current_end = min(current_start + timedelta(days=29), end_date)
             print(f"Fetching {current_start.date()} to {current_end.date()} {int(current_start.timestamp() * 1000)}")
+            current=1
+            while True:
+                try:
+                    response = self.client.margin_interest_history(
+                        isolatedSymbol=isolatedSymbol,
+                        startTime=int(current_start.timestamp() * 1000),
+                        endTime=int(current_end.timestamp() * 1000),
+                        current=current,
+                        size=size
+                    )
+                    total=response['total']
 
-            try:
-                response = self.client.margin_interest_history(
+                    all_records.extend(response['rows'])
+                    if total>size and current<=total/size:
+                        current+=1
+                    else:
+                        break
 
-                    isolatedSymbol=isolatedSymbol,
-                    startTime=int(current_start.timestamp() * 1000),
-                    endTime=int(current_end.timestamp() * 1000),
-
-                    size=100
-                )
-
-                all_records.extend(response['rows'])
-
-            except Exception as e:
-                print(f"Error from {current_start.date()} to {current_end.date()}: {e}")
+                except Exception as e:
+                    print(f"Error from {current_start.date()} to {current_end.date()}: {e}")
+                finally:
+                    time.sleep(0.5)
 
             current_start = current_end + timedelta(days=1)
-            time.sleep(0.5)
+
 
         df = pd.DataFrame(all_records)
 
