@@ -1,0 +1,9 @@
+binance-connector
+pandas
+selenium
+pytest
+ratelimit
+yfinance
+reportlab==4.4.2
+python-dotenv
+
