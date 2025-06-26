@@ -321,7 +321,7 @@ class BinanceExchange(BaseExchange):
         while current_start < end_date:
 
             current_end = min(current_start + timedelta(days=30), end_date)
-            print(f"Fetching {current_start.date()} to {current_end.date()}")
+            print(f" Fetching {current_start.date()} to {current_end.date()}")
 
             # Implement pagination for each time window
             page = 1
