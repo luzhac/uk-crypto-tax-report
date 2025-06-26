@@ -137,8 +137,8 @@ def get_report():
 
 
 
-    #generate_uk_crypto_tax_pdf_report(df_combined,interest_sum)
+    generate_uk_crypto_tax_pdf_report(df_combined,interest_sum)
 
 #exchange.get_all_isolated_margin_interest_history_all_year()
-exchange.get_margin_interest_history_all_year()
-#get_report()
+#exchange.get_margin_interest_history_all_year()
+get_report()

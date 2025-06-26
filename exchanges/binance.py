@@ -13,6 +13,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
+from src.utils import smtp_send_mail
+
 
 class BinanceExchange(BaseExchange):
     def __init__(self, api_key, api_secret, start_time, end_time):
@@ -348,6 +350,7 @@ class BinanceExchange(BaseExchange):
                 except Exception as e:
                     print(f"Error from {current_start.date()} to {current_end.date()}, page {page}: {e}")
                     time.sleep(2)  # Wait before continuing
+                    smtp_send_mail('error in get_margin_interest_history_all_year', '')
                     break
 
             # Move to next period without gaps
