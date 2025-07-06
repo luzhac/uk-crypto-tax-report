@@ -78,71 +78,8 @@ class BinanceExchange(BaseExchange):
 
     def get_usdt_price_in_gbp(self, ts):
 
-        ...
+        pass
 
-    def get_usdt_price_in_gbp(self, ts):
-
-        ...
-
-    def get_margin_trades(self, symbol, start_date, end_date, file_path):
-        # api_key    = os.environ["BINANCE_API_KEY"]
-        # api_secret = os.environ["BINANCE_SECRET_KEY"]
-
-        all_trades = []
-        current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
-        end = int((datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).timestamp() * 1000) - 1
-
-        while current_start < end:
-            current_end = min(current_start + 86399999, end)
-            start_ms = current_start
-            end_ms = current_end
-
-            from_id = None
-            while True:
-                params = {
-                    'symbol': symbol,
-                    'startTime': start_ms,
-                    'endTime': end_ms,
-                    'limit': 500
-                }
-                if from_id:
-                    params['fromId'] = from_id
-                for i in range(5):
-                    try:
-                        trades = self.client.margin_my_trades(**params)
-                        print(f"Fetching: {params}")
-                        break
-                    except Exception as e:
-                        print(
-                            f"Error fetching {datetime.fromtimestamp(start_ms / 1000)} – {datetime.fromtimestamp(end_ms / 1000)}: {e}")
-                    time.sleep(3)
-
-                all_trades.extend(trades)
-                if len(trades) < 500:
-                    break
-
-                from_id = trades[-1]['id'] + 1
-                time.sleep(0.3)
-
-            print(f"{datetime.fromtimestamp(current_start / 1000).date()} fetched: {len(all_trades)} trades total")
-            current_start = current_end + 1
-
-        df = pd.DataFrame(all_trades)
-        if df.empty:
-            return df
-
-        df['datetime'] = pd.to_datetime(df['time'], unit='ms')
-        df['side'] = df['isBuyer'].map({True: 'buy', False: 'sell'})
-        df['price'] = df['price'].astype(float)
-        df['qty'] = df['qty'].astype(float)
-        df['quoteQty'] = df['quoteQty'].astype(float)
-        df['commission'] = df['commission'].astype(float)
-
-        Path("./data/tax").mkdir(parents=True, exist_ok=True)
-        df.to_csv(file_path, index=False)
-
-        return df[
-            ['datetime', 'symbol', 'side', 'price', 'qty', 'quoteQty', 'commission', 'commissionAsset', 'orderId']]
 
     def get_margin_trades(self, symbol, start_date, end_date, file_path):
         # api_key    = os.environ["BINANCE_API_KEY"]
