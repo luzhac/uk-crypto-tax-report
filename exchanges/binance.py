@@ -7,6 +7,7 @@ import pandas as pd
 
 from exchanges.base_exchange import BaseExchange
 from binance.spot import Spot
+from binance.um_futures import UMFutures
 from ratelimit import limits, sleep_and_retry
 
 from selenium import webdriver
@@ -16,9 +17,14 @@ from selenium.webdriver.common.by import By
 from src.utils import smtp_send_mail
 
 
+from binance.error import ClientError
+
+
 class BinanceExchange(BaseExchange):
     def __init__(self, api_key, api_secret, start_time, end_time):
         self.client = Spot(api_key=api_key, api_secret=api_secret)
+        self.futures_client = UMFutures(key=api_key, secret=api_secret)
+
         self.start_time = start_time
         self.end_time = end_time
 
@@ -79,7 +85,6 @@ class BinanceExchange(BaseExchange):
     def get_usdt_price_in_gbp(self, ts):
 
         pass
-
 
     def get_margin_trades(self, symbol, start_date, end_date, file_path):
         # api_key    = os.environ["BINANCE_API_KEY"]
@@ -244,7 +249,6 @@ class BinanceExchange(BaseExchange):
                 else:
                     self.get_margin_trades(symbol, start_date, end_date, file_path)
 
-
     def get_margin_interest_history_all_year(self, isolatedSymbol=None):
         start_date_str = self.start_time
         end_date_str = self.end_time
@@ -351,5 +355,228 @@ class BinanceExchange(BaseExchange):
             print(f'fetch  {symbol}')
             self.get_margin_interest_history_all_year(symbol)
 
+    @sleep_and_retry
+    @limits(calls=1200, period=60)
+    def get_futures_trades(self, symbol, start_date=None, end_date=None, file_path=None):
+        """
+        Get futures trading history for a specific symbol,not for tax as time range is short
+        """
+        if not start_date:
+            start_date = self.start_time
+        if not end_date:
+            end_date = self.end_time
+
+        all_trades = []
+        current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
+        end = int((datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).timestamp() * 1000) - 1
+
+        while current_start < end:
+            current_end = min(current_start + 86399999, end)  # 1 day window
+            start_ms = current_start
+            end_ms = current_end
+
+            from_id = None
+            while True:
+                params = {
+                    'symbol': symbol,
+                    'startTime': start_ms,
+                    'endTime': end_ms,
+                    'limit': 1000  # Futures API allows up to 1000
+                }
+                if from_id:
+                    params['fromId'] = from_id
+
+                for i in range(5):  # Retry up to 5 times
+                    try:
+                        trades = self.futures_client.get_account_trades(**params)
+                        print(f"Fetching futures trades: {params}")
+                        break
+                    except Exception as e:
+                        print(
+                            f"Error fetching {datetime.fromtimestamp(start_ms / 1000)} – {datetime.fromtimestamp(end_ms / 1000)}: {e}")
+                        time.sleep(3)
+                else:
+                    print("Failed after 5 retries.")
+                    break
+
+                if not trades:
+                    break
+
+                all_trades.extend(trades)
+                if len(trades) < 1000:
+                    break
+
+                from_id = trades[-1]['id'] + 1
+                time.sleep(0.1)  # Small delay between requests
+
+            print(
+                f"{datetime.fromtimestamp(current_start / 1000).date()} fetched: {len(all_trades)} futures trades total")
+            current_start = current_end + 1
+
+        if not all_trades:
+            print("No futures trades found.")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(all_trades)
+
+        # Process the data
+        df['datetime'] = pd.to_datetime(df['time'], unit='ms')
+        df['side'] = df['side'].str.lower()
+        df['price'] = df['price'].astype(float)
+        df['qty'] = df['qty'].astype(float)
+        df['quoteQty'] = df['quoteQty'].astype(float)
+        df['commission'] = df['commission'].astype(float)
+        df['realizedPnl'] = df['realizedPnl'].astype(float)
+
+        # Save to file if path provided
+        if file_path:
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(file_path, index=False)
+            print(f"Futures trades saved to: {os.path.abspath(file_path)}")
+
+        return df[['datetime', 'symbol', 'side', 'price', 'qty', 'quoteQty',
+                   'commission', 'commissionAsset', 'realizedPnl', 'orderId']]
+
+    @sleep_and_retry
+    @limits(calls=600, period=60)
+    def get_futures_income_history(self, symbol=None, income_type=None, start_date=None, end_date=None, file_path=None):
+        """
+        Get futures income history (funding fees, realized PnL, etc.),not for tax as time range is short
+        """
+        if not start_date:
+            start_date = self.start_time
+        if not end_date:
+            end_date = self.end_time
+
+        all_income = []
+        current_start = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
+        end = int((datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).timestamp() * 1000) - 1
+
+        while current_start < end:
+            current_end = min(current_start + 86399999 * 7, end)  # 7 day window
+
+            params = {
+                'startTime': current_start,
+                'endTime': current_end,
+                'limit': 1000
+            }
+            if symbol:
+                params['symbol'] = symbol
+            if income_type:
+                params['incomeType'] = income_type
+
+            for i in range(5):
+                try:
+                    income = self.futures_client.get_income_history(**params)
+                    print(f"Fetching income history: {params}")
+                    break
+                except Exception as e:
+                    print(f"Error fetching income history: {e}")
+                    time.sleep(3)
+            else:
+                print("Failed to fetch income history after 5 retries.")
+                break
+
+            if income:
+                all_income.extend(income)
+
+            current_start = current_end + 1
+            time.sleep(0.2)
+
+        if not all_income:
+            print("No income history found.")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(all_income)
+        df['datetime'] = pd.to_datetime(df['time'], unit='ms')
+        df['income'] = df['income'].astype(float)
+
+        if file_path:
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(file_path, index=False)
+            print(f"Income history saved to: {os.path.abspath(file_path)}")
+
+        return df
+
+    def get_futures_records(self, symbols=None):
+        """
+        Get futures trading records for multiple symbols,not for tax as time range is short
+        """
+        if not symbols:
+            # Get active futures symbols
+            try:
+                exchange_info = self.futures_client.exchange_info()
+                symbols = [s['symbol'] for s in exchange_info['symbols']
+                           if s['status'] == 'TRADING' and s['symbol'].endswith('USDT')]
+                print(f"Found {len(symbols)} active USDT futures symbols")
+            except Exception as e:
+                print(f"Error getting exchange info: {e}")
+                symbols = ['BTCUSDT', 'ETHUSDT']  # Fallback to major pairs
+
+        start_date, end_date = self.start_time, self.end_time
+
+        for symbol in symbols:
+            print(f"Processing futures data for {symbol}...")
+
+            # Check if files already exist
+            trades_file_path = Path(f"./data/raw/futures/{symbol}_futures_trades.csv")
+            income_file_path = Path(f"./data/raw/futures/{symbol}_futures_income.csv")
+
+            if trades_file_path.exists() and income_file_path.exists():
+                print(f"Files for {symbol} already exist, skipping...")
+                continue
+
+            try:
+                # Get futures trades
+                if not trades_file_path.exists():
+                    self.get_futures_trades(symbol, start_date, end_date, trades_file_path)
+
+                # Get futures income history
+                if not income_file_path.exists():
+                    self.get_futures_income_history(symbol, file_path=income_file_path)
+
+                time.sleep(1)  # Pause between symbols
+
+            except Exception as e:
+                print(f"Error processing {symbol}: {e}")
+                continue
 
 
+    def get_future_download_link(self):
+
+        try:
+
+            start_dt = datetime.strptime(self.start_time, '%Y-%m-%d')
+            end_dt = datetime.strptime(self.end_time, '%Y-%m-%d')
+
+            start_dt=int(start_dt.timestamp()* 1000)
+            end_dt = int(end_dt.timestamp() * 1000)
+
+            response = self.futures_client.download_transactions_asyn(
+                startTime=start_dt, endTime=end_dt)
+
+            d_id=response['downloadId']
+
+
+        except ClientError as error:
+            print(
+                "Found error. status: {}, error code: {}, error message: {}".format(
+                    error.status_code, error.error_code, error.error_message
+                )
+            )
+
+        try:
+
+            for i in range(100):
+                #994254225955278848
+                response = self.futures_client.aysnc_download_info(downloadId=d_id)
+                print(response)
+                if response["status"]=='completed':
+                    break
+                time.sleep(10)
+        except ClientError as error:
+            print(
+                "Found error. status: {}, error code: {}, error message: {}".format(
+                    error.status_code, error.error_code, error.error_message
+                )
+            )
