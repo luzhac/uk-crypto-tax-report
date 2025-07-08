@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+import requests
 
 from exchanges.base_exchange import BaseExchange
 from binance.spot import Spot
@@ -545,18 +546,17 @@ class BinanceExchange(BaseExchange):
     def get_future_download_link(self):
 
         try:
-
             start_dt = datetime.strptime(self.start_time, '%Y-%m-%d')
             end_dt = datetime.strptime(self.end_time, '%Y-%m-%d')
 
             start_dt=int(start_dt.timestamp()* 1000)
             end_dt = int(end_dt.timestamp() * 1000)
 
-            response = self.futures_client.download_transactions_asyn(
-                startTime=start_dt, endTime=end_dt)
+            #response = self.futures_client.download_transactions_asyn(startTime=start_dt, endTime=end_dt)
+            response = self.futures_client.download_trade_asyn(startTime=start_dt, endTime=end_dt)
 
+            print(response)
             d_id=response['downloadId']
-
 
         except ClientError as error:
             print(
@@ -566,12 +566,14 @@ class BinanceExchange(BaseExchange):
             )
 
         try:
-
             for i in range(100):
                 #994254225955278848
-                response = self.futures_client.aysnc_download_info(downloadId=d_id)
+                #response = self.futures_client.aysnc_download_info(downloadId=d_id)
+                response = self.futures_client.async_download_trade_id(downloadId=d_id)
                 print(response)
+
                 if response["status"]=='completed':
+                    url = response['url']
                     break
                 time.sleep(10)
         except ClientError as error:
@@ -580,3 +582,20 @@ class BinanceExchange(BaseExchange):
                     error.status_code, error.error_code, error.error_message
                 )
             )
+
+
+        try:
+            local_path = "./data/raw/future/trades.zip"
+
+            folder = os.path.dirname(local_path)
+            os.makedirs(folder, exist_ok=True)
+
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(local_path, "wb") as f:
+                    f.write(response.content)
+                print(f" Sucess : {local_path}")
+            else:
+                print(f" Failure {response.status_code}")
+        except Exception as e:
+            print(e)
