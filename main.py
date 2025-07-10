@@ -131,13 +131,29 @@ def get_report():
         direction='backward'
     )
     interest_df['interest_in_usd'] = interest_df['interest'] * interest_df['bnb_usdt']
-    interest_sum=(interest_df['interest_in_usd'].sum())
+    interest_df['interest_in_gbp'] = interest_df['interest_in_usd'] * interest_df['usd_to_gbp']
+    df_combined['disposal_date'] = pd.to_datetime(df_combined['disposal_date'])
+    trades_sorted = df_combined[['disposal_date']].reset_index().rename(columns={'index': 'trade_id'}).sort_values('disposal_date')
+    interest_sorted = interest_df.sort_values('interestAccuredTime')
+    merged = pd.merge_asof(
+        interest_sorted,
+        trades_sorted,
+        left_on='interestAccuredTime',
+        right_on='disposal_date',
+        direction='nearest'
+    )
+    assigned = merged.groupby('trade_id')['interest_in_gbp'].sum().reset_index()
+    df_combined = df_combined.reset_index().rename(columns={'index': 'trade_id'})
+    df_combined = df_combined.merge(assigned, on='trade_id', how='left').fillna({'interest_in_gbp': 0})
+    df_combined['cost_in_gbp'] += df_combined['interest_in_gbp']
+    df_combined['net_profit_in_gbp'] -= df_combined['interest_in_gbp']
+    df_combined = df_combined.drop(columns=['trade_id'])
 
     print(trades_margin_df.tail())
 
 
 
-    generate_uk_crypto_tax_pdf_report(df_combined,interest_sum)
+    generate_uk_crypto_tax_pdf_report(df_combined)
 
 #exchange.get_all_isolated_margin_interest_history_all_year()
 #exchange.get_margin_interest_history_all_year()
