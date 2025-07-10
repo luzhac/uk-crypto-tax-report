@@ -8,7 +8,7 @@ from reportlab.lib.units import mm
 import pandas as pd
 
 
-def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_tax_report.pdf',
+def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf',
                                       tax_year_start='2025-04-06', tax_year_end='2026-04-05'):
     # Prepare data
     df['disposal_date'] = pd.to_datetime(df['disposal_date'])
@@ -16,9 +16,10 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
 
     df['profit_in_gbp'] = df['profit_in_gbp'].round(2)
     df['cost_in_gbp'] = df['cost_in_gbp'].round(2)
+    df['interest_in_gbp'] = df['interest_in_gbp'].round(2)
     df['net_profit_in_gbp'] = df['net_profit_in_gbp'].round(2)
 
-    total_net_profit = df['net_profit_in_gbp'].sum() - interest_sum
+    total_net_profit = df['net_profit_in_gbp'].sum()
     total_cost = df['cost_in_gbp'].sum()
 
     # Setup PDF
@@ -60,10 +61,10 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
     elements.append(Paragraph("Transaction Details", styles['Heading2']))
     elements.append(Spacer(1, 10))
 
-    fields = ['exchange', 'market', 'disposal_date', 'asset', 'proceeds_in_gbp', 'cost_in_gbp', 'net_profit_in_gbp',
+    fields = ['exchange', 'market', 'disposal_date', 'asset', 'proceeds_in_gbp', 'cost_in_gbp', 'interest_in_gbp', 'net_profit_in_gbp',
               'notes']
     table_data = [
-        ['#', 'Exchange', 'Market', 'Disposal Date', 'Asset', 'Proceeds\n(GBP)', 'Cost\n(GBP)', 'Gain', 'Notes']]
+        ['#', 'Exchange', 'Market', 'Disposal Date', 'Asset', 'Proceeds\n(GBP)', 'Cost\n(GBP)', 'Interest\n(GBP)', 'Gain', 'Notes']]
 
     for idx, row in enumerate(df[fields].itertuples(index=False), start=1):
         # Wrap the notes text in a Paragraph for proper text wrapping
@@ -77,6 +78,7 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
             row.asset,
             f"{row.proceeds_in_gbp:,.2f}",
             f"{row.cost_in_gbp:,.2f}",
+            f"{row.interest_in_gbp:,.2f}",
             f"{row.net_profit_in_gbp:,.2f}",
             notes_paragraph,
         ])
@@ -86,6 +88,7 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
         '', '', '', '', 'Total',
         f"{df['proceeds_in_gbp'].sum():,.2f}",
         f"{total_cost:,.2f}",
+        f"{df['interest_in_gbp'].sum():,.2f}",
         f"{df['net_profit_in_gbp'].sum():,.2f}",
         ''
     ])
@@ -100,8 +103,9 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
         30,  # Asset
         50,  # Proceeds
         50,  # Cost
+        50,  # Interest
         50,  # Net Profit
-        205  # Notes (largest column for full content)
+        155  # Notes (largest column for full content)
     ]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
@@ -115,8 +119,8 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
         ('FONTSIZE', (0, 1), (-1, -2), 7),  # All data rows except totals
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # Index column center
         ('ALIGN', (1, 0), (4, -1), 'LEFT'),  # Text columns left
-        ('ALIGN', (5, 1), (7, -1), 'RIGHT'),  # Number columns right
-        ('ALIGN', (8, 1), (8, -1), 'LEFT'),  # Notes column left
+        ('ALIGN', (5, 1), (8, -1), 'RIGHT'),  # Number columns right
+        ('ALIGN', (9, 1), (9, -1), 'LEFT'),  # Notes column left
 
         # Vertical alignment
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -131,21 +135,17 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
 
         # Totals row styling
-        ('BACKGROUND', (-4, -1), (-1, -1), colors.HexColor("#f0f0f0")),
-        ('FONTNAME', (-4, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (-4, -1), (-1, -1), 8),
-        ('TEXTCOLOR', (-4, -1), (-1, -1), colors.HexColor("#003366")),
+        ('BACKGROUND', (4, -1), (8, -1), colors.HexColor("#f0f0f0")),
+        ('FONTNAME', (4, -1), (8, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (4, -1), (8, -1), 8),
+        ('TEXTCOLOR', (4, -1), (8, -1), colors.HexColor("#003366")),
 
         # Word wrapping for notes column
-        ('WORDWRAP', (8, 0), (8, -1), True),
+        ('WORDWRAP', (9, 0), (9, -1), True),
     ]))
 
     elements.append(table)
 
-    # Add total interest cost
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("Total Interest Cost", styles['Heading2']))
-    elements.append(Paragraph(f"{interest_sum:,.2f} GBP", styles['BoldRight']))
 
     # Build PDF
     doc.build(elements)
