@@ -133,7 +133,7 @@ def get_report():
     interest_df['interest_in_usd'] = interest_df['interest'] * interest_df['bnb_usdt']
     interest_df['interest_in_gbp'] = interest_df['interest_in_usd'] * interest_df['usd_to_gbp']
     df_combined['disposal_date'] = pd.to_datetime(df_combined['disposal_date'])
-    # use data only from margin as interest only in margin
+    # add interest charge to trade cost, use data only from margin as interest only in margin
     trades_sorted = df_combined[df_combined['market']=='margin'][['disposal_date']].reset_index().rename(columns={'index': 'trade_id'}).sort_values('disposal_date')
     interest_sorted = interest_df.sort_values('interestAccuredTime')
     merged = pd.merge_asof(

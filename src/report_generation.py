@@ -8,7 +8,7 @@ from reportlab.lib.units import mm
 import pandas as pd
 
 
-def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_tax_report.pdf',
+def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf',
                                       tax_year_start='2025-04-06', tax_year_end='2026-04-05'):
     # Prepare data
     df['disposal_date'] = pd.to_datetime(df['disposal_date'])
@@ -18,7 +18,7 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
     df['cost_in_gbp'] = df['cost_in_gbp'].round(2)
     df['net_profit_in_gbp'] = df['net_profit_in_gbp'].round(2)
 
-    total_net_profit = df['net_profit_in_gbp'].sum() - interest_sum
+    total_net_profit = df['net_profit_in_gbp'].sum()
     total_cost = df['cost_in_gbp'].sum()
 
     # Setup PDF
@@ -142,10 +142,7 @@ def generate_uk_crypto_tax_pdf_report(df, interest_sum, output_path='uk_crypto_t
 
     elements.append(table)
 
-    # Add total interest cost
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("Total Interest Cost", styles['Heading2']))
-    elements.append(Paragraph(f"{interest_sum:,.2f} GBP", styles['BoldRight']))
+
 
     # Build PDF
     doc.build(elements)
