@@ -23,6 +23,7 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     total_proceeds_in_gbp = df['proceeds_in_gbp'].sum()
     total_cost = df['cost_in_gbp'].sum()
     TWO_PLACES = Decimal("0.01")
+    # round first then minus
     total_proceeds_in_gbp = total_proceeds_in_gbp.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
     total_cost = total_cost.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
