@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -14,12 +16,20 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     df['disposal_date'] = pd.to_datetime(df['disposal_date'])
     df = df.sort_values('disposal_date')
 
-    df['profit_in_gbp'] = df['profit_in_gbp'].round(2)
-    df['cost_in_gbp'] = df['cost_in_gbp'].round(2)
-    df['net_profit_in_gbp'] = df['net_profit_in_gbp'].round(2)
+    df['profit_in_gbp'] = df['profit_in_gbp']
+    df['cost_in_gbp'] = df['cost_in_gbp']
+    df['net_profit_in_gbp'] = df['net_profit_in_gbp']
 
-    total_net_profit = df['net_profit_in_gbp'].sum()
+    total_proceeds_in_gbp = df['proceeds_in_gbp'].sum()
     total_cost = df['cost_in_gbp'].sum()
+    TWO_PLACES = Decimal("0.01")
+    total_proceeds_in_gbp = total_proceeds_in_gbp.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+    total_cost = total_cost.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+
+    # didn't use df['cost_in_gbp'].sum() as it is different with total_proceeds_in_gbp - total_cost as the reason of round
+    total_net_profit=total_proceeds_in_gbp - total_cost
+
+
 
     # Setup PDF
     doc = SimpleDocTemplate(output_path, pagesize=A4,
@@ -84,9 +94,9 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     # Totals row
     table_data.append([
         '', '', '', '', 'Total',
-        f"{df['proceeds_in_gbp'].sum():,.2f}",
+        f"{total_proceeds_in_gbp:,.2f}",
         f"{total_cost:,.2f}",
-        f"{df['net_profit_in_gbp'].sum():,.2f}",
+        f"{total_net_profit:,.2f}",
         ''
     ])
 

@@ -6,6 +6,7 @@ from exchanges.binance import BinanceExchange
 from src.data_processing import calculate_pnl_2
 from src.report_generation import generate_uk_crypto_tax_pdf_report
 from src.utils import  get_usd_to_gbp_from_yahoo
+from decimal import Decimal
 load_dotenv()
 
 
@@ -74,13 +75,40 @@ def calculate_pnl(market,usdt_to_gbp_df,bnb_to_usdt_df):
     )
 
 
+    df['proceeds'] = df['proceeds'].apply(Decimal)
+    df['usd_gbp'] = df['usd_gbp'].apply(Decimal)
+
+    df['cost'] = df['cost'].apply(Decimal)
+    df['usd_gbp'] = df['usd_gbp'].apply(Decimal)
+
+    df['commission_usdt'] = df['commission_usdt'].apply(Decimal)
+    df['commission_bnb'] = df['commission_bnb'].apply(Decimal)
+    df['bnb_usdt'] = df['bnb_usdt'].apply(Decimal)
+
+
+
+
+
+
+
     df['proceeds_in_gbp'] = df['proceeds'] * df['usd_gbp']
+    df['proceeds_in_gbp'] = df['proceeds_in_gbp'].apply(Decimal)
+
     df['cost_in_gbp'] = df['cost'] * df['usd_gbp']
+    df['cost_in_gbp'] = df['cost_in_gbp'].apply(Decimal)
+
     df['profit_in_gbp'] = df['proceeds_in_gbp']-df['cost_in_gbp']
+    df['profit_in_gbp'] = df['profit_in_gbp'].apply(Decimal)
+
     df['commission_in_gbp'] = df['commission_usdt'] * df['usd_gbp'] + df['commission_bnb'] * \
                                df['bnb_usdt'] * df['usd_gbp']
+    df['commission_in_gbp'] = df['commission_in_gbp'].apply(Decimal)
+
     df['cost_in_gbp']= df['cost_in_gbp']+df['commission_in_gbp']
+    df['cost_in_gbp'] = df['cost_in_gbp'].apply(Decimal)
+
     df['net_profit_in_gbp'] = df['profit_in_gbp'] - df['commission_in_gbp']
+    df['net_profit_in_gbp'] = df['net_profit_in_gbp'].apply(Decimal)
 
     return df
 
@@ -91,23 +119,19 @@ def get_report():
     #exchange.get_price_minute('BNB','USDT')
     get_usd_to_gbp_from_yahoo(start = '2024-04-01',end=end_time)
 
-
-
-    usdt_to_gbp_df=pd.read_csv('./data/usd_gbp.csv', index_col=0)
+    usdt_to_gbp_df = pd.read_csv('./data/usd_gbp.csv', index_col=0)
     # df[Price   ,     Date,  USD_to_GBP]
-    usdt_to_gbp_df=usdt_to_gbp_df.iloc[1:]
-    usdt_to_gbp_df['Date']=pd.to_datetime(usdt_to_gbp_df['Date'])
+    usdt_to_gbp_df = usdt_to_gbp_df.iloc[1:]
+    usdt_to_gbp_df['Date'] = pd.to_datetime(usdt_to_gbp_df['Date'])
     usdt_to_gbp_df.set_index('Date')
-    usdt_to_gbp_df=usdt_to_gbp_df.set_index('Date')
+    usdt_to_gbp_df = usdt_to_gbp_df.set_index('Date')
     usdt_to_gbp_df = usdt_to_gbp_df.sort_index()
 
-
-    bnb_to_usdt_df=pd.read_csv('./data/bnb_usdt.csv', index_col=0)
+    bnb_to_usdt_df = pd.read_csv('./data/bnb_usdt.csv', index_col=0)
     # df[datetime  close]
-    bnb_to_usdt_df['datetime']=pd.to_datetime(bnb_to_usdt_df['datetime'])
-    bnb_to_usdt_df=bnb_to_usdt_df.set_index('datetime')
+    bnb_to_usdt_df['datetime'] = pd.to_datetime(bnb_to_usdt_df['datetime'])
+    bnb_to_usdt_df = bnb_to_usdt_df.set_index('datetime')
     bnb_to_usdt_df = bnb_to_usdt_df.sort_index()
-
 
     trades_spot_df = calculate_pnl('spot', usdt_to_gbp_df, bnb_to_usdt_df)
     trades_margin_df = calculate_pnl('margin', usdt_to_gbp_df, bnb_to_usdt_df)
@@ -115,7 +139,7 @@ def get_report():
     df_combined = pd.concat([trades_spot_df, trades_margin_df], ignore_index=True)
 
     interest_df = pd.read_csv('./data/raw/interest/interest_margin.csv')
-    interest_df['interestAccuredTime']=pd.to_datetime(interest_df['interestAccuredTime'])
+    interest_df['interestAccuredTime'] = pd.to_datetime(interest_df['interestAccuredTime'])
     interest_df = pd.merge_asof(
         interest_df.sort_values('interestAccuredTime'),
         bnb_to_usdt_df[['close']].sort_index().rename(columns={'close': 'bnb_usdt'}),
@@ -130,11 +154,24 @@ def get_report():
         right_index=True,
         direction='backward'
     )
+
+    interest_df['interest'] = interest_df['interest'].apply(Decimal)
+    interest_df['bnb_usdt'] = interest_df['bnb_usdt'].apply(Decimal)
+
+    interest_df['usd_to_gbp'] = interest_df['usd_to_gbp'].apply(Decimal)
+    interest_df['usd_to_gbp'] = interest_df['usd_to_gbp'].apply(Decimal)
+
     interest_df['interest_in_usd'] = interest_df['interest'] * interest_df['bnb_usdt']
+    interest_df['interest_in_usd'] = interest_df['interest_in_usd'].apply(Decimal)
+
     interest_df['interest_in_gbp'] = interest_df['interest_in_usd'] * interest_df['usd_to_gbp']
+    interest_df['interest_in_gbp'] = interest_df['interest_in_gbp'].apply(Decimal)
+
     df_combined['disposal_date'] = pd.to_datetime(df_combined['disposal_date'])
+
     # add interest charge to trade cost, use data only from margin as interest only in margin
-    trades_sorted = df_combined[df_combined['market']=='margin'][['disposal_date']].reset_index().rename(columns={'index': 'trade_id'}).sort_values('disposal_date')
+    trades_sorted = df_combined[df_combined['market'] == 'margin'][['disposal_date']].reset_index().rename(
+        columns={'index': 'trade_id'}).sort_values('disposal_date')
     interest_sorted = interest_df.sort_values('interestAccuredTime')
     merged = pd.merge_asof(
         interest_sorted,
@@ -143,11 +180,18 @@ def get_report():
         right_on='disposal_date',
         direction='nearest'
     )
+    merged['interest_in_gbp'] = merged['interest_in_gbp'].apply(Decimal)
     assigned = merged.groupby('trade_id')['interest_in_gbp'].sum().reset_index()
     df_combined = df_combined.reset_index().rename(columns={'index': 'trade_id'})
     df_combined = df_combined.merge(assigned, on='trade_id', how='left').fillna({'interest_in_gbp': 0})
+    df_combined['interest_in_gbp'] = df_combined['interest_in_gbp'].apply(Decimal)
+    df_combined['cost_in_gbp'] = df_combined['cost_in_gbp'].apply(Decimal)
     df_combined['cost_in_gbp'] += df_combined['interest_in_gbp']
-    df_combined['net_profit_in_gbp'] -= df_combined['interest_in_gbp']
+    df_combined['cost_in_gbp'] = df_combined['cost_in_gbp'].apply(Decimal)
+
+    df_combined['proceeds_in_gbp'] = df_combined['proceeds_in_gbp'].apply(Decimal)
+    df_combined['net_profit_in_gbp'] = df_combined['proceeds_in_gbp']-df_combined['cost_in_gbp']
+    df_combined['net_profit_in_gbp'] = df_combined['net_profit_in_gbp'].apply(Decimal)
     df_combined = df_combined.drop(columns=['trade_id'])
 
     print(trades_margin_df.tail())
