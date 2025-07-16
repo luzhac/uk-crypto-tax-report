@@ -10,7 +10,7 @@ from reportlab.lib.units import mm
 import pandas as pd
 
 
-def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf',
+def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf',
                                       tax_year_start='2025-04-06', tax_year_end='2026-04-05'):
     # Prepare data
     df['disposal_date'] = pd.to_datetime(df['disposal_date'])
@@ -28,9 +28,31 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     total_cost = total_cost.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
     # didn't use df['cost_in_gbp'].sum() as it is different with total_proceeds_in_gbp - total_cost as the reason of round
-    total_net_profit=total_proceeds_in_gbp - total_cost
+    total_net_profit = total_proceeds_in_gbp - total_cost
 
+    # Calculate summary statistics
+    num_disposals = len(df)
+    total_gains = df[df['net_profit_in_gbp'] > 0]['net_profit_in_gbp'].sum()
+    total_losses = df[df['net_profit_in_gbp'] < 0]['net_profit_in_gbp'].sum()
+    net_gains = total_gains + total_losses  # losses are negative, so this gives net
 
+    # Add acquired date and amount columns if they don't exist
+    if 'acquired_date' not in df.columns:
+        df['acquired_date'] = df['open_time']  # Use open_time as acquired date
+    if 'amount' not in df.columns:
+        df['amount'] = df['qty']  # Use qty as amount
+
+    # Update notes column with HMRC rules
+    df['notes'] = ''
+    for idx, row in df.iterrows():
+        acquired_date = pd.to_datetime(row['acquired_date'])
+        disposal_date = pd.to_datetime(row['disposal_date'])
+
+        if acquired_date.date() == disposal_date.date():
+            df.at[idx, 'notes'] = 'Same Day'
+        elif (disposal_date - acquired_date).days <= 30 and (disposal_date - acquired_date).days > 0:
+            df.at[idx, 'notes'] = '30-Day Rule'
+        # else: leave empty
 
     # Setup PDF
     doc = SimpleDocTemplate(output_path, pagesize=A4,
@@ -46,6 +68,13 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     # === Summary Page ===
     elements.append(Paragraph("UK Cryptocurrency Tax Report", styles['Title']))
     elements.append(Spacer(1, 10))
+
+    # Add Report Description (Header Page)
+    elements.append(Paragraph(
+        "This report includes: Capital Gains, Other Gains, Income, Costs & Expenses, and Gifts, Donations & Lost Coins.",
+        styles['Normal']))
+    elements.append(Spacer(1, 10))
+
     elements.append(Paragraph("Tax Year", styles['Heading2']))
     elements.append(Paragraph(
         f"{pd.to_datetime(tax_year_start).strftime('%d %b %Y')} to {pd.to_datetime(tax_year_end).strftime('%d %b %Y')}",
@@ -56,25 +85,45 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
     elements.append(Paragraph("Summary of Tax Report", styles['Heading2']))
     elements.append(Spacer(1, 8))
 
-    elements.append(Paragraph("Realized Capital Gains", styles['Normal']))
-    elements.append(Paragraph(f"{max(total_net_profit, 0):,.2f} GBP", styles['BoldRight']))
+    # Updated Summary Section (Header Page)
+    elements.append(Paragraph("Capital Gains:", styles['Heading3']))
+    elements.append(Paragraph(f"Number of Disposals: {num_disposals}", styles['Normal']))
+    elements.append(Paragraph(f"Disposal Proceeds: {total_proceeds_in_gbp:,.2f} GBP", styles['Normal']))
+    elements.append(Paragraph(f"Allowable Costs: {total_cost:,.2f} GBP", styles['Normal']))
+    elements.append(Paragraph(f"Gain in This Year: {max(total_gains, 0):,.2f} GBP", styles['Normal']))
+    elements.append(Paragraph(f"Losses in This Year: {max(-total_losses, 0):,.2f} GBP", styles['Normal']))
+    elements.append(Paragraph(f"Net Gains: {net_gains:,.2f} GBP", styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # Other Sections (with "No transactions" indication)
+    elements.append(Paragraph("Other Gains:", styles['Heading3']))
+    elements.append(Paragraph("No transactions", styles['Normal']))
     elements.append(Spacer(1, 6))
 
-    elements.append(Paragraph("Realized Capital Losses", styles['Normal']))
-    elements.append(Paragraph(f"{max(-total_net_profit, 0):,.2f} GBP", styles['BoldRight']))
+    elements.append(Paragraph("Income:", styles['Heading3']))
+    elements.append(Paragraph("No transactions", styles['Normal']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("Costs & Expenses:", styles['Heading3']))
+    elements.append(Paragraph("No transactions", styles['Normal']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("Gifts, Donations & Lost Coins:", styles['Heading3']))
+    elements.append(Paragraph("No transactions", styles['Normal']))
     elements.append(Spacer(1, 12))
 
     elements.append(Paragraph(f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['SmallGrey']))
     elements.append(PageBreak())
 
     # === Transaction Table ===
-    elements.append(Paragraph("Transaction Details", styles['Heading2']))
+    elements.append(Paragraph("Capital Gains Transactions", styles['Heading2']))  # Renamed section title
     elements.append(Spacer(1, 10))
 
-    fields = ['exchange', 'market', 'disposal_date', 'asset', 'proceeds_in_gbp', 'cost_in_gbp', 'net_profit_in_gbp',
-              'notes']
+    fields = ['exchange', 'market', 'disposal_date', 'acquired_date', 'asset', 'amount', 'proceeds_in_gbp',
+              'cost_in_gbp', 'net_profit_in_gbp', 'notes']
     table_data = [
-        ['#', 'Exchange', 'Market', 'Disposal Date', 'Asset', 'Proceeds\n(GBP)', 'Cost\n(GBP)', 'Gain', 'Notes']]
+        ['#', 'Exchange', 'Market', 'Disposal Date', 'Acquired Date', 'Asset', 'Amount', 'Proceeds\n(GBP)',
+         'Cost\n(GBP)', 'Gain/Loss', 'Notes']]
 
     for idx, row in enumerate(df[fields].itertuples(index=False), start=1):
         # Wrap the notes text in a Paragraph for proper text wrapping
@@ -85,7 +134,9 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
             row.exchange,
             row.market,
             row.disposal_date.strftime('%Y-%m-%d\n%H:%M:%S'),
+            row.acquired_date.strftime('%Y-%m-%d\n%H:%M:%S'),
             row.asset,
+            f"{row.amount:,.4f}",
             f"{row.proceeds_in_gbp:,.2f}",
             f"{row.cost_in_gbp:,.2f}",
             f"{row.net_profit_in_gbp:,.2f}",
@@ -94,7 +145,8 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
 
     # Totals row
     table_data.append([
-        '', '', '', '', 'Total',
+        '', '', '', '', '', 'Total',
+        f"{df['amount'].sum():,.4f}",
         f"{total_proceeds_in_gbp:,.2f}",
         f"{total_cost:,.2f}",
         f"{total_net_profit:,.2f}",
@@ -107,12 +159,14 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
         20,  # # (Index)
         45,  # Exchange
         35,  # Market
-        55,  # Date
+        55,  # Disposal Date
+        55,  # Acquired Date
         30,  # Asset
+        40,  # Amount
         50,  # Proceeds
         50,  # Cost
-        50,  # Net Profit
-        205  # Notes (largest column for full content)
+        50,  # Gain/Loss
+        150  # Notes (adjusted for new columns)
     ]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
@@ -125,9 +179,9 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
         # Data styling
         ('FONTSIZE', (0, 1), (-1, -2), 7),  # All data rows except totals
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),  # Index column center
-        ('ALIGN', (1, 0), (4, -1), 'LEFT'),  # Text columns left
-        ('ALIGN', (5, 1), (7, -1), 'RIGHT'),  # Number columns right
-        ('ALIGN', (8, 1), (8, -1), 'LEFT'),  # Notes column left
+        ('ALIGN', (1, 0), (6, -1), 'LEFT'),  # Text columns left
+        ('ALIGN', (7, 1), (9, -1), 'RIGHT'),  # Number columns right
+        ('ALIGN', (10, 1), (10, -1), 'LEFT'),  # Notes column left
 
         # Vertical alignment
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -142,18 +196,16 @@ def generate_uk_crypto_tax_pdf_report(df,  output_path='uk_crypto_tax_report.pdf
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
 
         # Totals row styling
-        ('BACKGROUND', (-4, -1), (-1, -1), colors.HexColor("#f0f0f0")),
-        ('FONTNAME', (-4, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (-4, -1), (-1, -1), 8),
-        ('TEXTCOLOR', (-4, -1), (-1, -1), colors.HexColor("#003366")),
+        ('BACKGROUND', (-5, -1), (-1, -1), colors.HexColor("#f0f0f0")),
+        ('FONTNAME', (-5, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (-5, -1), (-1, -1), 8),
+        ('TEXTCOLOR', (-5, -1), (-1, -1), colors.HexColor("#003366")),
 
         # Word wrapping for notes column
-        ('WORDWRAP', (8, 0), (8, -1), True),
+        ('WORDWRAP', (10, 0), (10, -1), True),
     ]))
 
     elements.append(table)
-
-
 
     # Build PDF
     doc.build(elements)
