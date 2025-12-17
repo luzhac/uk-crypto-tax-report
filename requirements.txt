@@ -7,4 +7,5 @@ yfinance
 reportlab==4.4.2
 python-dotenv
 binance-futures-connector
+python-dotenv
 
