@@ -15,7 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
-from src.utils import smtp_send_mail
+
 
 
 from binance.error import ClientError

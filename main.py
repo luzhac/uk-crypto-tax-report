@@ -10,8 +10,8 @@ from decimal import Decimal
 load_dotenv()
 
 
-api_key = os.getenv("API_KEY")
-api_secret = os.getenv("API_SECRET")
+api_key = 'ZrumLpueBNcG1LYnRCHxacWNkuD7qXgTOa8NoIaCLQjQ2tGUHRad043Ea0uIHGUl'#os.getenv("API_KEY")
+api_secret = 'FhHnLIdaB9S9p9xaThFIqoF7CyENqNbfDgs3JjQVWptJhy88FIGDA3kMZZrAva9L'#os.getenv("API_SECRET")
 start_time = '2024-04-06'
 end_time = '2025-04-05'
 exchange = BinanceExchange(api_key=api_key, api_secret=api_secret,start_time=start_time,end_time=end_time)
@@ -45,6 +45,7 @@ def calculate_pnl(market,usdt_to_gbp_df,bnb_to_usdt_df):
     df['market']=market
     df['exchange'] = 'BINANCE'
     df_summary = pd.DataFrame(results_summary)
+    print(df.head())
     df.sort_values('open_time',inplace=True)
     print('Summary:',df_summary['profit'].sum(),df_summary['commission_usdt'].sum(),df_summary['commission_bnb'].sum())
 
@@ -196,10 +197,15 @@ def get_report():
 
     print(trades_margin_df.tail())
 
-
+    df_combined.to_csv('combined.csv')
 
     generate_uk_crypto_tax_pdf_report(df_combined)
 
+def get_report1():
+    df_combined=pd.read_csv('combined.csv')
+
+    generate_uk_crypto_tax_pdf_report(df_combined)
 #exchange.get_all_isolated_margin_interest_history_all_year()
 #exchange.get_margin_interest_history_all_year()
-get_report()
+#get_report()
+get_report1()
