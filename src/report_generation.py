@@ -20,12 +20,15 @@ def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf'
     df['cost_in_gbp'] = df['cost_in_gbp']
     df['net_profit_in_gbp'] = df['net_profit_in_gbp']
 
+
+
+
     total_proceeds_in_gbp = df['proceeds_in_gbp'].sum()
     total_cost = df['cost_in_gbp'].sum()
     TWO_PLACES = Decimal("0.01")
     # round first then minus
-    total_proceeds_in_gbp = total_proceeds_in_gbp.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
-    total_cost = total_cost.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+    total_proceeds_in_gbp = Decimal(str(total_proceeds_in_gbp)).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+    total_cost = Decimal(str(total_cost)).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
     # didn't use df['cost_in_gbp'].sum() as it is different with total_proceeds_in_gbp - total_cost as the reason of round
     total_net_profit = total_proceeds_in_gbp - total_cost
@@ -41,6 +44,10 @@ def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf'
         df['acquired_date'] = df['open_time']  # Use open_time as acquired date
     if 'amount' not in df.columns:
         df['amount'] = df['qty']  # Use qty as amount
+
+    df["acquired_date"] = pd.to_datetime(df["acquired_date"])
+
+
 
     # Update notes column with HMRC rules
     df['notes'] = ''

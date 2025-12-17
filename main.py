@@ -10,8 +10,8 @@ from decimal import Decimal
 load_dotenv()
 
 
-api_key = 'ZrumLpueBNcG1LYnRCHxacWNkuD7qXgTOa8NoIaCLQjQ2tGUHRad043Ea0uIHGUl'#os.getenv("API_KEY")
-api_secret = 'FhHnLIdaB9S9p9xaThFIqoF7CyENqNbfDgs3JjQVWptJhy88FIGDA3kMZZrAva9L'#os.getenv("API_SECRET")
+api_key = os.getenv("API_KEY")
+api_secret = os.getenv("API_SECRET")
 start_time = '2024-04-06'
 end_time = '2025-04-05'
 exchange = BinanceExchange(api_key=api_key, api_secret=api_secret,start_time=start_time,end_time=end_time)
