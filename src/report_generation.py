@@ -163,17 +163,17 @@ def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf'
     # Define column widths (in points, 72 points = 1 inch)
     # Total available width is approximately 540 points for A4 with margins
     col_widths = [
-        20,  # # (Index)
-        45,  # Exchange
-        35,  # Market
-        55,  # Disposal Date
-        55,  # Acquired Date
-        30,  # Asset
-        40,  # Amount
-        50,  # Proceeds
-        50,  # Cost
-        50,  # Gain/Loss
-        150  # Notes (adjusted for new columns)
+        18,  # # (Index)
+        42,  # Exchange
+        42,  # Market
+        60,  # Disposal Date
+        60,  # Acquired Date
+        28,  # Asset
+        80,  # Amount
+        68,  # Proceeds
+        68,  # Cost
+        60,  # Gain/Loss
+        52,  # Notes (adjusted for new columns)
     ]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
