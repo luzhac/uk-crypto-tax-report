@@ -57,7 +57,9 @@ def generate_uk_crypto_tax_pdf_report(df, output_path='uk_crypto_tax_report.pdf'
 
         if acquired_date.date() == disposal_date.date():
             df.at[idx, 'notes'] = 'Same Day'
-        elif (disposal_date - acquired_date).days <= 30 and (disposal_date - acquired_date).days > 0:
+        #elif (disposal_date - acquired_date).days <= 30 and (disposal_date - acquired_date).days > 0:
+        #    df.at[idx, 'notes'] = '30-Day Rule'
+        else:
             df.at[idx, 'notes'] = '30-Day Rule'
         # else: leave empty
 
